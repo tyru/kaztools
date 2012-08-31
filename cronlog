@@ -71,6 +71,12 @@ unless (my $pid = fork) {
     }
 } else {
     close $logwh;
+    # if any output exists, release buffer and
+    # _log($_) gets to output to $logfh immediately.
+    if (defined($_ = <$logrh>)) {
+        _log($_);
+        _log_unbuffer();
+    }
     _log($_) while <$logrh>;
     close $logrh;
     while (wait == -1) {}
@@ -100,12 +106,29 @@ if ($exit_code != 0) {
 
 exit($exit_code >> 8);
 
-sub _log {
-    my ($line, $timestamp) = @_;
-    print $logfh (
-        ($timestamp || $opt_timestamp ? '[' . scalar(localtime) . '] ' : ''),
-        $line,
-    );
+{
+    my $do_buffer = 1;
+    my @log_buffer;
+
+    sub _log {
+        my ($line, $timestamp) = @_;
+        $line = join(' ',
+            ($timestamp || $opt_timestamp ? '[' . scalar(localtime) . '] ' : ''),
+            $line,
+        );
+        if ($do_buffer) {
+            push @log_buffer, $line;
+        }
+        else {
+            print $logfh $line;
+        }
+    }
+
+    # release buffer and _log($_) gets to output to $logfh immediately.
+    sub _log_unbuffer {
+        print $logfh $_ for @log_buffer;
+        $do_buffer = 0;
+    }
 }
 
 __END__
