@@ -10,10 +10,11 @@ use Pod::Usage;
 
 our $VERSION = '0.01';
 
-my ($logfile, $opt_timestamp, $opt_help, $opt_version);
+my ($logfile, $opt_timestamp, $opt_iso8601, $opt_help, $opt_version);
 GetOptions(
     'logfile=s' => \$logfile,
     'timestamp' => \$opt_timestamp,
+    'iso8601'   => \$opt_iso8601,
     'help'      => \$opt_help,
     'version'   => \$opt_version,
 ) or pod2usage(1);
@@ -22,6 +23,10 @@ if ($opt_help) {
 } elsif ($opt_version) {
     print "$VERSION\n";
     exit 0;
+} elsif ($opt_iso8601) {
+    eval { require Time::Piece };
+    die "you need to install Time::Piece to use ISO8601 format.: $@\n"
+        if $@;
 }
 die "no args"
     unless @ARGV;
@@ -102,8 +107,9 @@ exit($exit_code >> 8);
 
 sub _log {
     my ($line, $timestamp) = @_;
+    my $time = ($opt_iso8601 ? Time::Piece->localtime->datetime : scalar(localtime));
     print $logfh (
-        ($timestamp || $opt_timestamp ? '[' . scalar(localtime) . '] ' : ''),
+        ($timestamp || $opt_timestamp ? '[' . $time . '] ' : ''),
         $line,
     );
 }
